@@ -1,0 +1,37 @@
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Python generated files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets and environment variables
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# IDE and operating system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Local research data and generated results
+data/raw/
+research/results/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
