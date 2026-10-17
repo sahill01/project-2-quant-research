@@ -3,6 +3,8 @@
 import numpy as np
 import pandas as pd
 
+from .data_loader import validate_candle_availability
+
 
 def _validate_window(name: str, value: int) -> None:
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
@@ -12,6 +14,7 @@ def _validate_window(name: str, value: int) -> None:
 def confirmed_swing_points(
     candles: pd.DataFrame,
     *,
+    timeframe: str,
     left_bars: int,
     right_bars: int,
 ) -> pd.DataFrame:
@@ -33,14 +36,9 @@ def confirmed_swing_points(
     frame = candles.copy()
     if frame.empty:
         raise ValueError("Candle frame is empty")
-    for column in ("timestamp", "available_at"):
-        frame[column] = pd.to_datetime(frame[column], utc=True, errors="raise")
-        if frame[column].isna().any() or frame[column].duplicated().any():
-            raise ValueError(f"{column} timestamps must be valid and unique")
-        if not frame[column].is_monotonic_increasing:
-            raise ValueError(f"{column} timestamps must be ordered")
-    if (frame["available_at"] <= frame["timestamp"]).any():
-        raise ValueError("available_at must follow the candle timestamp")
+    frame["timestamp"], frame["available_at"] = validate_candle_availability(
+        frame["timestamp"], frame["available_at"], timeframe
+    )
 
     prices = frame[["high", "low"]].apply(pd.to_numeric, errors="raise").astype(float)
     if not np.isfinite(prices.to_numpy(dtype=float)).all():
@@ -90,4 +88,58 @@ def confirmed_swing_points(
     result["swing_high_price"] = high_pivot_prices
     result["swing_low_price"] = low_pivot_prices
 
+    return result
+
+
+def confirmed_market_structure(
+    candles: pd.DataFrame,
+    *,
+    timeframe: str,
+    left_bars: int,
+    right_bars: int,
+) -> pd.DataFrame:
+    """Classify confirmed swing events against the prior same-side swing.
+
+    The returned rows retain the swing-point columns and add
+    ``swing_high_structure`` / ``swing_low_structure``. The first event of
+    each side is labelled ``initial_high`` / ``initial_low``; later events
+    are labelled higher/lower/equal relative to the previous confirmed swing
+    of that side. Classification is emitted on the same confirmation row as
+    its pivot and never uses a not-yet-confirmed pivot.
+    """
+    result = confirmed_swing_points(
+        candles, timeframe=timeframe, left_bars=left_bars, right_bars=right_bars
+    )
+    high_labels = [None] * len(result)
+    low_labels = [None] * len(result)
+    previous_high = None
+    previous_low = None
+
+    for row_idx in range(len(result)):
+        high = result["swing_high_price"].iloc[row_idx]
+        if pd.notna(high):
+            if previous_high is None:
+                high_labels[row_idx] = "initial_high"
+            elif high > previous_high:
+                high_labels[row_idx] = "higher_high"
+            elif high < previous_high:
+                high_labels[row_idx] = "lower_high"
+            else:
+                high_labels[row_idx] = "equal_high"
+            previous_high = high
+
+        low = result["swing_low_price"].iloc[row_idx]
+        if pd.notna(low):
+            if previous_low is None:
+                low_labels[row_idx] = "initial_low"
+            elif low > previous_low:
+                low_labels[row_idx] = "higher_low"
+            elif low < previous_low:
+                low_labels[row_idx] = "lower_low"
+            else:
+                low_labels[row_idx] = "equal_low"
+            previous_low = low
+
+    result["swing_high_structure"] = high_labels
+    result["swing_low_structure"] = low_labels
     return result

@@ -31,6 +31,113 @@ Before feature/signal implementation, record and approve one hypothesis with:
 8. A reproducible manifest with code/data hashes, configuration, timestamps,
    test results and rejection decisions.
 
+## Proposed descriptive tests for market-structure features
+
+These are hypotheses to preregister, not approved signals. No test below
+changes feature definitions or implies that an event should be traded. Use
+the event's `available_at` as the observation anchor; `pivot_time` and
+`formation_time` describe earlier geometry and must not be used as if the
+information was known then.
+
+### Hypotheses and falsifiable outcomes
+
+For each event, define forward close return as
+`close_at_available_plus_H / close_at_available - 1`, where `H` is a
+predeclared horizon after availability. Because candle gaps are allowed, the
+horizon convention itself remains unresolved and requires approval:
+
+- A fixed number of observed bars preserves an observation-count horizon, but
+  the elapsed clock time varies when candles are missing.
+- A fixed elapsed-time horizon gives a stable clock duration, but requires a
+  documented sampling rule when no candle closes exactly at the target time
+  (for example, which eligible close is selected or whether the event is
+  excluded).
+
+No numeric horizon or missing-candle sampling rule is chosen here. The exact
+horizon(s), asset/timeframe set, comparison cohorts, minimum sample rationale,
+and economically meaningful effect sizes are unresolved and require approval
+before data access. An observation may support a hypothesis only if the
+predeclared directional conditional return contrast is positive in its
+expected direction and its uncertainty is consistent with the registered
+criterion. A contrast that is zero, opposite, or too uncertain rejects or
+defers it according to the criteria below; no horizon may be selected after
+looking at holdout outcomes.
+
+| Feature hypothesis | Observable comparison | Expected direction; falsifier |
+|---|---|---|
+| Confirmed market structure | At each close, compare outcomes when the latest confirmed high label is `higher_high` and latest confirmed low label is `higher_low` against the corresponding `lower_low`/`lower_high` state and a predeclared unconditional cohort. | Bullish-state forward returns should exceed bearish-state returns. No stable contrast or a reversed contrast rejects the directional claim. Initial/equal/mixed states remain separately described. |
+| Support/resistance lifecycle | Compare returns after a support or resistance `touched` event and after a `broken` event with matched no-event observations. Match only on information known at the event's availability. | Support touch and resistance break are expected to have positive directional outcomes; resistance touch and support break negative. Reversed or absent differences reject the respective subhypothesis. These four contrasts are recorded separately. |
+| Bullish engulfing | Outcomes after `bullish_engulfing` versus eligible no-pattern candles. | Positive directional contrast; zero or negative contrast rejects it. |
+| Bearish engulfing | Outcomes after `bearish_engulfing` versus eligible no-pattern candles. | Negative directional contrast; zero or positive contrast rejects it. |
+| Hammer | Outcomes after `hammer` versus eligible no-pattern candles. | Positive directional contrast; zero or negative contrast rejects it. The test does not add trend context absent from the detector. |
+| Shooting star | Outcomes after `shooting_star` versus eligible no-pattern candles. | Negative directional contrast; zero or positive contrast rejects it. The test does not add trend context absent from the detector. |
+| Double top | Outcomes anchored at the event's `available_at`, not its earlier formation candle, versus eligible no-pattern observations. | Negative directional contrast; zero or positive contrast rejects it. A neckline-break subgroup is a separate future hypothesis, not part of `shape_confirmed`. |
+| Double bottom | Outcomes anchored at `available_at` versus eligible no-pattern observations. | Positive directional contrast; zero or negative contrast rejects it. |
+
+### Outcomes and baselines
+
+The primary descriptive outcome is the predeclared forward-return
+distribution (mean, median, quantiles and uncertainty) at every registered
+horizon, with directional hit rate reported as a secondary summary rather
+than a trading objective. Where OHLC makes it meaningful, also report
+maximum favorable and adverse excursion from the first post-availability
+bar through the horizon. All outcome windows begin after the event becomes
+available. A descriptive event study has no position, execution, fee, or
+equity accounting and is not a backtest.
+
+Compare feature cohorts with unconditional and carefully matched no-event
+observations from the same asset, timeframe and chronological period. For
+context, report unchanged Buy & Hold, EMA 20/50 and Donchian 20 baseline
+metrics on exactly the same asset/timeframe/date range; existing saved
+baseline files remain untouched and are not regenerated for this protocol.
+Such strategy-level context does not establish that a feature caused a
+baseline's result. If a separately approved rule is later tested as a full
+strategy, report turnover, exposure, fees, slippage, drawdown and both
+mark-to-market and net-liquidation equity under the existing semantics.
+
+### Leakage, dependence and reproducibility controls
+
+- Compute every feature on chronologically ordered data with the declared
+  timeframe. Require `available_at == timestamp + timeframe`; do not infer a
+  duration from missing-candle gaps. A pivot/formation is eligible only at
+  its later feature `available_at`.
+- Split by availability into development (training plus validation) and an
+  untouched later holdout. Freeze the versioned configuration and approved
+  hypothesis before opening the holdout through `experiment_protocol.py`.
+  The existing 730-day data is engineering/pipeline evidence only until a
+  suitable history and approved split plan exist.
+- Events and forward windows can overlap. Predeclare an event-clustering or
+  dependence-aware uncertainty method; do not count repeated or overlapping
+  observations as independent. For matched cohorts, define matching variables
+  using information available at the anchor close only.
+- Register all eight feature families, the four separate zone contrasts,
+  horizons, assets, subgroups and outcome metrics before evaluation. Preserve
+  null and rejected results in the research log; use an approved multiple-
+  testing adjustment or designate a small primary family before analysis.
+- Never choose thresholds, horizons, assets, regimes or variants based on
+  holdout performance. Any revision after validation creates a new version
+  and requires a fresh untouched holdout.
+- Record hypothesis ID/version, feature code hashes, data-file hashes and
+  ranges, explicit timeframe, configuration fingerprint, sample counts,
+  exclusions, tests, outcome definitions, uncertainty method and rejection
+  decision in a no-clobber experiment manifest and append-only log.
+
+### Decision and approval criteria
+
+Advance a hypothesis only when its preregistered outcome is directionally
+consistent in the development and validation data, sample-size rationale is
+met, uncertainty and multiple-testing treatment satisfy the approved plan,
+and the result survives the registered asset/period and observation-dependence
+checks. Reject it if the registered effect is absent or reversed under the
+approved decision rule. Defer it when history, event count, data quality or
+uncertainty is insufficient. Numerical effect-size, confidence, minimum
+sample, cross-asset consistency and multiplicity thresholds are intentionally
+left undecided; they require approval before any predictive experiment.
+
+Passing this protocol would justify only the next research gate. It would not
+approve strategy integration, a preferred strategy, paper trading, or live
+execution.
+
 The existing split/manifest utilities enforce basic chronology, availability
 column coverage, fingerprint matching, output no-clobber behavior, and an
 explicit `APPROVED` hypothesis-status declaration before holdout freeze. The

@@ -27,14 +27,15 @@
 - [ ] Funding/liquidation model
 
 ## Phase 3
-- [ ] Swing Engine
-- [ ] Market Structure Engine
+- [x] Causal swing-point detection with configurable confirmation windows
+- [x] Confirmed same-side market-structure labels (HH/LH/HL/LL; equal and initial events explicit)
+- [x] Objective close-available candlestick geometry events
 - [ ] Simple structural hypotheses
 - [ ] Incremental feature testing
 
 ## Phase 4
-- [ ] Support/resistance lifecycle
-- [ ] Pattern Engine
+- [x] Causal support/resistance zone lifecycle features (descriptive only)
+- [x] Causal double-top/double-bottom geometry events
 - [ ] Evidence objects
 - [ ] Dynamic scoring only after evidence supports it
 

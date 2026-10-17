@@ -32,6 +32,33 @@ def timeframe_to_timedelta(timeframe: str) -> pd.Timedelta:
         raise ValueError(f"Timeframe interval is out of range: {timeframe}") from error
 
 
+def validate_candle_availability(
+    timestamps: pd.Series,
+    available_at: pd.Series,
+    timeframe: str,
+) -> tuple[pd.Series, pd.Series]:
+    """Validate open timestamps and exact close availability for a timeframe.
+
+    Timestamp gaps are allowed: the explicit timeframe, not adjacent rows,
+    defines when each candle closes.
+    """
+    interval = timeframe_to_timedelta(timeframe)
+    opens = pd.to_datetime(timestamps, utc=True, errors="raise")
+    availability = pd.to_datetime(available_at, utc=True, errors="raise")
+    for name, values in (("timestamp", opens), ("available_at", availability)):
+        if values.isna().any() or values.duplicated().any():
+            raise ValueError(f"{name} timestamps must be valid and unique")
+        if not values.is_monotonic_increasing:
+            raise ValueError(f"{name} timestamps must be ordered")
+
+    expected = opens + interval
+    if not availability.equals(expected):
+        raise ValueError(
+            f"available_at must equal timestamp plus the {timeframe} candle duration"
+        )
+    return opens, availability
+
+
 def validate_timestamp_alignment(
     timestamps: pd.Series,
     timeframe: str,

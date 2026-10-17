@@ -1,6 +1,6 @@
 # Project 2 Roadmap Status
 
-Status date: 2026-10-15
+Status date: 2026-10-18
 
 This report records engineering and descriptive research work completed after
 the BTCUSD/ETHUSD/SOLUSD 4h cross-asset baseline run. The historical results
@@ -118,8 +118,77 @@ formulas, warm-up behavior, timestamp availability and prefix/future
 perturbation invariance, including as-of-join behavior immediately before and
 at a feature availability boundary. `structure_features.py` emits strict
 swing-point events only on the later confirmation candle and keeps pivot time
-distinct from confirmation availability. These primitives are not connected
-to a strategy and have no tested predictive value.
+distinct from confirmation availability. `confirmed_market_structure` now
+classifies each event against only the previous confirmed swing on that same
+side, labeling initial, higher, lower and equal highs/lows on the confirmation
+row. Synthetic tests cover all classifications, prefix and future-perturbation
+invariance, and insufficient history. These primitives are not connected to a
+strategy and have no tested predictive value.
+
+`candlestick_patterns.py` provides four deterministic geometric events:
+bullish/bearish real-body engulfing, hammer, and shooting star. It excludes
+zero-range and doji-like candles (body/range at most 0.10); engulfing also
+requires one valid opposing-color prior candle. Events carry the source candle
+open timestamp and its close availability. Synthetic tests cover positive and
+negative cases, ratio boundaries, invalid inputs, prefix invariance and future
+perturbation. These labels have no trend context and no tested predictive
+value.
+
+`chart_patterns.py` adds double-top and double-bottom geometry events from
+consecutive confirmed swing triples. The intervening confirmed trough/peak
+must lie strictly beyond both extrema; endpoint similarity uses a caller
+tolerance fraction of their mean price, and separation uses inclusive candle
+index bounds. No neckline break is required, so `shape_confirmed` denotes
+only geometric formation. Availability is the close of the candle that
+confirms the second extremum. Overlapping qualifying triples are all emitted
+with timestamp-derived deterministic IDs. Tests cover both shapes, threshold
+boundaries, delayed swing confirmation, overlapping candidates and causal
+prefix/future invariance. This is feature detection only.
+
+`support_resistance.py` derives fixed-width support/resistance zones from
+those confirmed swings without rerunning pivot detection. Its event ledger
+records zone creation at confirmation availability, then wick-touch events or
+terminal close-confirmed breaks on later candles. Zones remain distinct when
+they overlap and retain their origin pivot and creation timestamps. Synthetic
+tests cover both zone types, lifecycle precedence, repeated touches,
+overlaps, deterministic output, insufficient history and prefix/future
+perturbation invariance. These are feature semantics, not trading rules or
+evidence of predictive value.
+
+All four feature layers now require an explicit candle timeframe and validate
+`available_at == timestamp + timeframe`; gaps in the data do not alter that
+contract. A candle may qualify as both a high and low swing; both are retained
+at the same pivot time, while chart sequencing keeps the stable high-then-low
+order and never treats them as two temporally ordered pivots.
+
+`feature_pipeline.py` assembles the standalone APIs into separate candle
+features, a normalized provenance-preserving event ledger, and per-close
+zone-state snapshots. Its same-close sort is deterministic but not an
+intrabar ordering claim. Synthetic integration tests cover simultaneous
+events, delayed availability, missing candles, as-of state stability,
+invalid inputs, deterministic repeats, and insufficient swing history.
+
+### Stages 5–8 — Reference validation and research readiness
+
+TA-Lib and pandas-ta-classic are not installed in the project environment.
+Source/documentation review and deterministic Project 2-only synthetic cases
+show meaningful definition differences, so neither dependency was added.
+TA-Lib uses adaptive candle settings for hammer/shooting-star and has a
+previous-real-body gap condition for shooting star; pandas-ta-classic's native
+patterns are TA-Lib-oriented, so they are not a fully independent reference.
+Runtime library comparison remains unperformed.
+
+The feature assembler passed synthetic end-to-end prefix extension and future
+perturbation checks, including event availability, fixed zone boundaries,
+as-of touch/break state, duplicate/unsorted/malformed input rejection,
+explicit timeframe mismatch rejection, valid missing-candle gaps,
+same-close deterministic ordering, and dual-pivot non-sequencing. It does not
+validate predictive value. `VALIDATION_AND_READINESS_PLAN.md` now specifies
+eight falsifiable descriptive feature families, separate support/resistance
+contrasts, return/excursion outcomes, baseline context, overlap and
+multiple-testing controls, holdout freeze/reproducibility steps, and decision
+gates. Horizon, sample-size, effect-size, uncertainty and multiplicity
+thresholds remain undecided and require approval before predictive evaluation.
 
 ### Phase 4 — Evidence-testing tools and data availability
 
