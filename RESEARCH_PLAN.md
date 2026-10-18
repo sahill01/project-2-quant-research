@@ -19,9 +19,9 @@
 - [x] Donchian long/short baseline
 
 ## Phase 2
-- [ ] Prefix-invariance test
+- [x] Prefix-invariance test
 - [ ] Multi-timeframe causal join test
-- [ ] Train/validation/locked-holdout split
+- [x] Chronological train/validation/holdout partition primitive (evaluation remains gated)
 - [ ] Intrabar stop/target ordering
 - [ ] Contract/tick/minimum-size constraints
 - [ ] Funding/liquidation model
@@ -36,7 +36,7 @@
 ## Phase 4
 - [x] Causal support/resistance zone lifecycle features (descriptive only)
 - [x] Causal double-top/double-bottom geometry events
-- [ ] Evidence objects
+- [x] Reproducible experiment specification, provenance manifest and local approval record
 - [ ] Dynamic scoring only after evidence supports it
 
 ## Phase 5

@@ -192,20 +192,37 @@ thresholds remain undecided and require approval before predictive evaluation.
 
 ### Phase 4 — Evidence-testing tools and data availability
 
-`experiment_protocol.py` provides UTC chronological partitions based on
-`available_at`, config fingerprints, an explicit config-freeze check before
-holdout access, no-clobber run manifests with data/source hashes, and
-append-only research-log entries with rejection reasons. Holdout freeze now
-requires the versioned config to declare its hypothesis `APPROVED`; this is a
-caller attestation, not independent proof of approval. The freeze/open API
-fingerprints the current config object each time, so changing nested
-parameters or approval status after freezing prevents holdout access.
-Manifests also require experiment-specific source files from the caller and
-hash them with the core engine files, so the runner/feature implementation
-can be recorded. The manifest writer rejects an empty input-data file list;
-otherwise it could create a nominally reproducible run with no input hashes.
-Config fingerprints also reject NaN and infinite values so their canonical
-payload remains valid JSON. A CSV schema audit found five engineering-log rows with unquoted commas;
+`experiment_protocol.py` provides UTC chronological partitions, strict
+canonical configuration fingerprints, no-clobber manifests, and append-only
+research-log entries. Approval is now a structured local review record bound
+to hypothesis ID/version, the full hypothesis and config snapshots, and
+current hashes of input data plus core/caller-supplied implementation files.
+Holdout freeze and holdout-inclusive metrics reject a status string alone and
+revalidate approval invariants and source hashes at use time. Frozen partitions
+bind the approval record, split boundaries, frame-content fingerprint, and
+copied partition contents. Metrics require a ledger-content provenance record;
+it detects later substitution but cannot prove the caller derived the ledgers
+from the approved files. All preregistration decision fields must be resolved
+before an approval record can be created; common unresolved placeholders are
+recognized without treating placeholder-like words inside normal prose as
+unresolved. Methodology choices remain explicit and are not given defaults.
+
+Version 2 manifests separate intended specification, actual input/code and
+runtime provenance, outputs, and validation/approval state. They record data
+identities, hashes, timestamp ranges/timeframe, source hashes, Git revision
+when available, feature version, execution/cost config, random seeds, and
+artifact hashes on finalization. Stable path-safe IDs, unique run directories,
+and no-clobber publication prevent accidental identity collision. These local
+Python controls are not an authentication/security boundary. Finalization
+separates completed computation (`evaluation_completed`) from scientific
+status and requires an explicit state; independent manifest verification
+checks contained artifact paths and recorded hashes. Synthetic tests cover
+config/spec/input/source and partition mutation, unresolved decisions,
+unauthorized holdout access/metrics, manifest validation states, artifact
+integrity, and no-clobber publication. No predictive experiment or holdout
+evaluation was run.
+
+A CSV schema audit found five engineering-log rows with unquoted commas;
 their quoting was repaired without changing their text or order. The log now
 parses as 42 unique-ID data rows with the declared 12 columns.
 Availability partitioning now also rejects an empty source frame; otherwise

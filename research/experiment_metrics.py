@@ -8,11 +8,21 @@ open holdout partitions, execute strategies, or choose a strategy.
 """
 
 import math
+from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
 
 from research.experiment_protocol import TemporalSplit, TimeWindow
+from research.experiment_protocol import (
+    ExperimentConfig,
+    PreregistrationApproval,
+    _approval_record_fingerprint,
+    _split_fingerprint,
+    dataframe_fingerprint,
+    validate_preregistration_approval,
+)
+from research.hypothesis_spec import HypothesisSpec
 
 
 EQUITY_COLUMNS = (
@@ -20,6 +30,48 @@ EQUITY_COLUMNS = (
     "mark_to_market_equity",
     "net_liquidation_equity",
 )
+
+
+@dataclass(frozen=True)
+class EvaluationProvenance:
+    """Content binding for ledgers evaluated under one approved specification.
+
+    This detects stale or substituted frames after the provenance record is
+    made. It cannot prove that a caller originally derived those frames from
+    the approved source files; that remains the caller's responsibility.
+    """
+
+    approval_sha256: str
+    specification_sha256: str
+    split_sha256: str
+    equity_sha256: str
+    trades_sha256: str
+    timestamp_col: str
+
+
+def create_evaluation_provenance(
+    equity: pd.DataFrame,
+    trades: pd.DataFrame,
+    split: TemporalSplit,
+    *,
+    timestamp_col: str,
+    config: ExperimentConfig,
+    hypothesis: HypothesisSpec,
+    approval: PreregistrationApproval,
+) -> EvaluationProvenance:
+    """Bind the supplied ledger contents to the currently approved spec."""
+    validate_preregistration_approval(config, hypothesis, approval)
+    split.validate()
+    if _split_fingerprint(split, timestamp_col) != _split_fingerprint(config.split, timestamp_col):
+        raise PermissionError("Evaluation windows do not match the approved configuration")
+    return EvaluationProvenance(
+        approval_sha256=_approval_record_fingerprint(approval),
+        specification_sha256=approval.specification_sha256,
+        split_sha256=_split_fingerprint(split, timestamp_col),
+        equity_sha256=dataframe_fingerprint(equity),
+        trades_sha256=dataframe_fingerprint(trades),
+        timestamp_col=timestamp_col,
+    )
 
 
 def _validated_equity(equity: pd.DataFrame, timestamp_col: str) -> pd.DataFrame:
@@ -182,13 +234,38 @@ def metrics_by_temporal_split(
     split: TemporalSplit,
     *,
     timestamp_col: str = "available_at",
+    config: ExperimentConfig,
+    hypothesis: HypothesisSpec,
+    approval: PreregistrationApproval,
+    provenance: EvaluationProvenance,
 ) -> pd.DataFrame:
     """Calculate train/validation/holdout metrics for supplied ledgers.
 
-    This function does not access or unfreeze holdout data. The caller must
-    generate/provide the ledger only after following the experiment protocol.
+    The ledger content must match a provenance record bound to the current
+    approval and split. The record detects later substitution or mutation;
+    the caller remains responsible for deriving the ledger from the approved
+    inputs. This is an accidental-use safeguard, not a security boundary.
     """
+    if split.holdout is None:
+        raise ValueError("A holdout window is required")
+    validate_preregistration_approval(config, hypothesis, approval)
     split.validate()
+    if _split_fingerprint(split, timestamp_col) != _split_fingerprint(config.split, timestamp_col):
+        raise PermissionError("Evaluation windows do not match the approved configuration")
+    if not isinstance(provenance, EvaluationProvenance):
+        raise PermissionError("A matching evaluation provenance record is required")
+    expected_binding = (
+        _approval_record_fingerprint(approval), approval.specification_sha256,
+        _split_fingerprint(split, timestamp_col), dataframe_fingerprint(equity),
+        dataframe_fingerprint(trades), timestamp_col,
+    )
+    actual_binding = (
+        provenance.approval_sha256, provenance.specification_sha256,
+        provenance.split_sha256, provenance.equity_sha256,
+        provenance.trades_sha256, provenance.timestamp_col,
+    )
+    if actual_binding != expected_binding:
+        raise PermissionError("Evaluation provenance is stale or does not match supplied ledgers")
     periods = (
         ("train", split.train),
         ("validation", split.validation),

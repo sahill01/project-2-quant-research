@@ -138,25 +138,71 @@ Passing this protocol would justify only the next research gate. It would not
 approve strategy integration, a preferred strategy, paper trading, or live
 execution.
 
-The existing split/manifest utilities enforce basic chronology, availability
-column coverage, fingerprint matching, output no-clobber behavior, and an
-explicit `APPROVED` hypothesis-status declaration before holdout freeze. The
-status is a caller attestation, not independent proof of user approval. A
-manifest requires the caller to provide experiment-specific source files and
-hashes them alongside the core backtester, loader, strategies and protocol.
-The caller must include every feature and runner file that affects the
-experiment. These utilities do not decide suitable date windows, sample
-sufficiency or a strategy. The manifest writer also rejects an empty input
-data-file list so a configured run cannot appear reproducible without data
-hashes. Configuration fingerprints use strict JSON serialization and reject
-NaN and infinite values instead of encoding Python's non-standard JSON tokens.
+`experiment_protocol.py` now separates intended specification, actual input
+and implementation provenance, outputs, and validation/approval metadata in
+the versioned manifest. It records the hypothesis ID/version, config and
+hypothesis fingerprints, dataset IDs/hashes/observed timestamp ranges and
+timeframe, core and caller-supplied source hashes, code revision when Git is
+available, feature-pipeline version, execution/cost assumptions, random
+seeds, runtime versions, artifact hashes, and validation metadata. Experiment
+IDs are path-safe and unique within an output root; existing run directories
+are never overwritten. The manifest starts as `configured_not_run`. Finalized
+manifests use `evaluation_completed` only when computation status is
+`completed`; a separate scientific status records `not_assessed`,
+`criteria_met`, `criteria_not_met`, or `inconclusive`. These labels do not
+define or imply acceptance thresholds. `verify_experiment_manifest()` checks
+schema/status consistency, artifact containment, uniqueness, existence, and
+SHA-256 values. Hashes first captured at finalization cannot prove that an
+artifact was unchanged before finalization.
+
+Holdout freeze and holdout-inclusive `experiment_metrics.py` reports require
+a `PreregistrationApproval` record created from an approved config and
+hypothesis, an approver identity/note/time, fully resolved decision fields,
+and hashes of the current data and implementation files. The record is
+rechecked against the current config, hypothesis, data, and code at use time.
+An `APPROVED` string alone, Boolean, or caller-provided digest is insufficient.
+This is a deliberate local audit contract and stale-input safeguard, not an
+identity service or security boundary: Python callers can forge local records
+or bypass APIs and access private data. Frozen partitions also bind the exact
+approval record, canonical source-frame content fingerprint, partition
+boundaries, and copied partition contents. The frame fingerprint detects
+content changes; it does not prove the frame originated from the approved
+source files.
+
+`ResearchDecisions` explicitly leaves unanswered methodology fields as
+`None`, empty values, and common unresolved placeholders (`UNRESOLVED`, `TBD`,
+`TODO`, `TO BE DETERMINED`, or `PENDING`, case-insensitively) block approval.
+Placeholder-like words in ordinary explanatory text do not by themselves
+make a field unresolved. No
+numeric horizon, missing-candle policy, sample threshold, effect-size or
+uncertainty criterion, matching method, or split design is supplied by the
+infrastructure. Synthetic tests use fixture-only values and are not research
+choices. Manifests require at least one data file and experiment-specific
+source file; strict canonical JSON rejects non-finite config values. The
+append-only research log continues to record experiment IDs and outcomes or
+rejection reasons.
+
+Reproducibility tests (`python -m research.test_experiment_protocol`,
+`python -m research.test_hypothesis_spec`, and
+`python -m research.test_experiment_metrics`) exercise synthetic fixtures and
+temporary directories only. They do not run an evaluation. The repository has
+no single approved predictive-evaluation command; baseline and diagnostic
+scripts produce descriptive historical outputs and are not preregistration
+gates. Any future predictive runner must first require a resolved approval
+record and the holdout gate. Reproducibility establishes repeatability and
+auditability, not scientific validity, profitability, or statistical support.
 
 `experiment_metrics.py` summarizes precomputed ledgers over those windows,
 using the last equity observation before each window as its starting account
 value and drawdown peak. It keeps closed-trade exit-time attribution separate
-from fee event-time attribution. It does not load or reveal holdout data; the
-caller remains responsible for using the freeze/open protocol before
-calculating holdout metrics.
+from fee event-time attribution. Holdout-inclusive summaries require the
+current approval and an `EvaluationProvenance` record that fingerprints the
+exact supplied ledgers and split. This detects later ledger substitution or
+mutation, but cannot prove that a caller initially derived those ledgers from
+the approved source data or implementation; that remains a caller
+responsibility until a future runner owns the derivation boundary. A local
+Python API cannot prevent deliberate private-attribute access, copying data
+before freeze, or forged records.
 The holdout is omitted from the partition object's default representation to
 avoid accidental disclosure through ordinary logging. Python callers can
 still intentionally access the private attribute or serialize the object, so

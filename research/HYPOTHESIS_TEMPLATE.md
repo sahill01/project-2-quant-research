@@ -24,3 +24,22 @@ untouched holdout.
 - **Transaction costs:** Specify fee, slippage, and any excluded costs.
 - **Approval status:** Proposed / Approved / Rejected. Implementation requires
   explicit approval of the hypothesis and its signal definition.
+- **Null and baseline comparison:**
+- **Event definition and feature availability:** Include the event's actual
+  observation anchor, availability timestamp, and eligible decision time.
+- **Forward-outcome horizon and calculation:** Mark unresolved until approved.
+- **Missing-candle policy:** Mark unresolved until approved.
+- **Overlapping-event treatment:** Mark unresolved until approved.
+- **Chronological development/validation/holdout windows:** Include timezone
+  and half-open boundary semantics; do not expose holdout before approval.
+- **Matching or control-selection method:** Mark unresolved until approved.
+- **Minimum sample rationale:** Mark unresolved until approved.
+- **Effect-size criteria:** Mark unresolved until approved.
+- **Uncertainty and multiple-testing criteria:** Mark unresolved until approved.
+- **Advance/reject/defer rule:** Mark unresolved until approved.
+
+An unresolved field must remain explicitly unresolved; infrastructure tests may
+use synthetic values only to verify validation and lifecycle behavior. A local
+approval record stores approver, time, note, and the spec/data/source
+fingerprint. It provides an audit trail and stale-input check, not identity
+verification or scientific validity.
