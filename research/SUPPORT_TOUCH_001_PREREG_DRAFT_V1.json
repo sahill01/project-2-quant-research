@@ -1,0 +1,72 @@
+{
+  "draft_id": "SUPPORT_TOUCH_001_PREREG_DRAFT_V1",
+  "purpose": "Versioned proposal fingerprint only; no approval, data, source, or evaluation record.",
+  "specification": {
+    "approval_status": "DRAFT",
+    "asset_timeframe_scope": [
+      [
+        "BTCUSD",
+        "4h"
+      ]
+    ],
+    "availability_semantics": "touch_candle_available_at",
+    "boundary_policy": "purge",
+    "causal_availability_rule": "origin_confirmation_and_zone_creation_at_or_before_touch_availability",
+    "cohort_labels": [
+      "higher_low",
+      "lower_low"
+    ],
+    "data_file_hashes": null,
+    "decision_criteria": null,
+    "embargo": "24h",
+    "endpoint_rule": "exact",
+    "estimand": "event_weighted_mean higher_low outcome minus lower_low outcome",
+    "event_anchor_semantics": "touch_candle_close",
+    "event_definition": "confirmed_support_zone_touch_by_origin_swing_low_v1",
+    "experiment_type": "feature_event_study",
+    "feature_parameters": null,
+    "horizon_convention": "fixed_elapsed_time",
+    "horizon_value": "24h",
+    "hypothesis_id": "HYP-SUPPORT-TOUCH-001",
+    "hypothesis_version": 1,
+    "incomplete_window_policy": "exclude",
+    "max_lateness": null,
+    "meaningful_effect_threshold": null,
+    "minimum_sample_rationale": null,
+    "missing_data_policy": "exclude_if_gap",
+    "multiplicity_family": [
+      "primary_BTCUSD_4h"
+    ],
+    "origin_join_keys": [
+      "zone_id",
+      "pivot_time",
+      "swing_low_pivot_time"
+    ],
+    "outcome_formula": "(C_future/C_anchor)-1",
+    "overlapping_event_policy": "retain_separately",
+    "repeated_touch_policy": "retain_all",
+    "schema_version": 1,
+    "source_file_hashes": null,
+    "split": null,
+    "uncertainty_method": null
+  },
+  "specification_sha256": "a4c6f27011234655d3691aa7134436f4fee47027701f348c413b4f5be584cc1e",
+  "status": "DRAFT — NOT APPROVED FOR EVALUATION",
+  "unapproved_recommendations": [
+    "BTCUSD 4h primary scope",
+    "24h exact elapsed close return",
+    "event-weighted higher_low minus lower_low contrast",
+    "exclude gaps and incomplete windows",
+    "24h nominal embargo"
+  ],
+  "unresolved_fields": [
+    "feature_parameters",
+    "chronological split boundaries",
+    "uncertainty_method",
+    "minimum_sample_rationale",
+    "decision_criteria",
+    "meaningful_effect_threshold",
+    "data_file_hashes",
+    "source_file_hashes"
+  ]
+}

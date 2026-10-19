@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 
 import pandas as pd
 
-from research.data_loader import load_ohlcv
+from research.data_loader import load_ohlcv, load_ohlcv_before
 
 
 COLUMNS = ["timestamp", "open", "high", "low", "close", "volume"]
@@ -90,6 +90,30 @@ def test_valid_dataset_is_preserved():
     )
 
 
+def test_stage_bounded_loader_rejects_out_of_order_timestamp_after_boundary():
+    frame = pd.DataFrame({
+        "timestamp": [
+            "2026-01-01T00:00:00Z",
+            "2026-01-01T02:00:00Z",  # First candle at the exclusive boundary.
+            "2026-01-01T01:00:00Z",  # Would otherwise be silently omitted.
+        ],
+        "open": [100.0, 100.0, 100.0],
+        "high": [105.0, 105.0, 105.0],
+        "low": [95.0, 95.0, 95.0],
+        "close": [102.0, 102.0, 102.0],
+        "volume": [1.0, 1.0, 1.0],
+    })
+    with TemporaryDirectory() as directory:
+        path = Path(directory) / "synthetic.csv"
+        frame.to_csv(path, index=False)
+        try:
+            load_ohlcv_before(path, "1h", "2026-01-01T03:00:00Z")
+        except ValueError as error:
+            assert "strictly increasing" in str(error)
+        else:
+            raise AssertionError("Out-of-order timestamp after boundary was ignored")
+
+
 def main() -> None:
     tests = [
         test_empty_dataset_is_rejected,
@@ -98,6 +122,7 @@ def main() -> None:
         test_timestamps_off_utc_timeframe_grid_are_rejected,
         test_nonpositive_and_malformed_timeframes_are_rejected,
         test_valid_dataset_is_preserved,
+        test_stage_bounded_loader_rejects_out_of_order_timestamp_after_boundary,
     ]
     for test in tests:
         test()

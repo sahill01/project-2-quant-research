@@ -79,16 +79,9 @@ def validate_timestamp_alignment(
         )
 
 
-def load_ohlcv(path: str | Path, timeframe: str) -> pd.DataFrame:
-    # timestamp is candle OPEN time.
-    # available_at is when the fully closed candle becomes known.
-    path = Path(path)
-
-    if not path.exists():
-        raise FileNotFoundError(f"Dataset not found: {path}")
-
-    df = pd.read_csv(path)
-
+def _validate_ohlcv_frame(
+    df: pd.DataFrame, timeframe: str, *, sort_timestamps: bool
+) -> pd.DataFrame:
     if df.empty:
         raise ValueError("Dataset is empty.")
 
@@ -120,11 +113,10 @@ def load_ohlcv(path: str | Path, timeframe: str) -> pd.DataFrame:
     if not np.isfinite(numeric_values).all():
         raise ValueError("Dataset contains non-finite numeric values.")
 
-    df = (
-        df[REQUIRED_COLUMNS]
-        .sort_values("timestamp")
-        .reset_index(drop=True)
-    )
+    df = df[REQUIRED_COLUMNS]
+    if sort_timestamps:
+        df = df.sort_values("timestamp")
+    df = df.reset_index(drop=True)
 
     if not df["timestamp"].is_monotonic_increasing:
         raise ValueError("Timestamps are not ordered.")
@@ -145,6 +137,66 @@ def load_ohlcv(path: str | Path, timeframe: str) -> pd.DataFrame:
         )
 
     return df
+
+
+def load_ohlcv(path: str | Path, timeframe: str) -> pd.DataFrame:
+    # timestamp is candle OPEN time.
+    # available_at is when the fully closed candle becomes known.
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"Dataset not found: {path}")
+    return _validate_ohlcv_frame(
+        pd.read_csv(path), timeframe, sort_timestamps=True
+    )
+
+
+def load_ohlcv_before(
+    path: str | Path,
+    timeframe: str,
+    available_before: str | pd.Timestamp,
+) -> pd.DataFrame:
+    """Load and validate only candles closing before an authorized boundary.
+
+    The CSV timestamp column is streamed to locate the prefix and verify
+    chronological order. OHLCV values are materialized only for that prefix,
+    which keeps later partition prices out of the returned frame. The bounded
+    loader does not sort the source.
+    """
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"Dataset not found: {path}")
+    boundary = pd.Timestamp(available_before)
+    if boundary.tzinfo is None:
+        raise ValueError("Availability boundary must include a timezone")
+    boundary = boundary.tz_convert("UTC")
+    interval = timeframe_to_timedelta(timeframe)
+    row_count = 0
+    previous = None
+    boundary_reached = False
+    iterator = pd.read_csv(path, usecols=["timestamp"], chunksize=1)
+    try:
+        for chunk in iterator:
+            timestamp = pd.to_datetime(
+                chunk["timestamp"].iloc[0], utc=True, errors="coerce"
+            )
+            if pd.isna(timestamp):
+                raise ValueError("Dataset contains NaN/invalid timestamps.")
+            validate_timestamp_alignment(pd.Series([timestamp]), timeframe)
+            if previous is not None and timestamp <= previous:
+                raise ValueError("Stage-bounded dataset timestamps must be strictly increasing.")
+            previous = timestamp
+            if timestamp + interval >= boundary:
+                boundary_reached = True
+            elif not boundary_reached:
+                row_count += 1
+    finally:
+        iterator.close()
+
+    prefix = pd.read_csv(path, nrows=row_count)
+    return (
+        _validate_ohlcv_frame(prefix, timeframe, sort_timestamps=False),
+        boundary_reached,
+    )
 
 
 def default_dataset_path(

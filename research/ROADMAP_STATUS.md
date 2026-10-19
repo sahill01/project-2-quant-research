@@ -1,6 +1,6 @@
 # Project 2 Roadmap Status
 
-Status date: 2026-10-18
+Status date: 2026-10-20
 
 This report records engineering and descriptive research work completed after
 the BTCUSD/ETHUSD/SOLUSD 4h cross-asset baseline run. The historical results
@@ -345,8 +345,85 @@ v1 is explicitly superseded due to the quarterly state bug described above.
 - The paper-trading readiness review finds its operational and validation
   gates unmet; see `PAPER_TRADING_READINESS_REVIEW.md`.
 
-The next work would define one specific, pre-registered market hypothesis
-and its untouched validation plan before implementing research features or
-signals. That is the first approval gate: no strategy/predictive rule should
-be selected or tested until the user approves the exact hypothesis and
-validation design. Paper-trading readiness is not established.
+The support-touch feature hypothesis is now documented as a draft, but its
+methodology has not been approved and no outcomes have been evaluated. The
+next gate is user review of that methodology and any missing infrastructure
+design choices before a real-data evaluation is authorized. No predictive
+rule should be selected or tested before that approval. Paper-trading
+readiness is not established.
+
+### Milestone 3 — Feature-only event-study infrastructure
+
+`event_study.py` provides a versioned feature-event-study specification,
+local approval/staleness checks, causal support-touch cohorts, outcome
+mechanics, partition assignment, descriptive summaries, and bundle
+verification. `event_study_runner.py` verifies approvals and source/data
+hashes before reading stage-bounded OHLCV prefixes, freezes stage events
+before calculating outcomes, and publishes a no-clobber, verified output
+bundle. Stage-bound loading validates the full timestamp ordering without
+materializing post-boundary OHLCV, and the lower-level research outcome API
+rejects frames containing candles at or beyond the authorized stage end.
+Manifest creation and verification check exact artifact identities, schemas,
+matching event/outcome IDs, stage-bounded timestamps, finite included outcomes,
+completion-check keys, and row counts. Synthetic tests cover both horizon
+conventions, gaps, partition crossings, unauthorized stages, future-candle
+exclusion, symlink/path escapes, malformed and unexpected artifacts,
+reproducibility, and failed publication cleanup.
+
+The runner reports `computation_completed` and `scientific_status=not_assessed`;
+it does not perform inferential analysis or assess the hypothesis. Local
+approval and runner checks reduce accidental misuse but are not a security or
+process-isolation boundary. No project OHLCV was passed to the event-study
+runner or outcome calculator, and no real-data event study or predictive
+evaluation was run.
+
+The support-touch hypothesis and approval package remain **DRAFT — NOT
+APPROVED FOR EVALUATION**. No real-hypothesis approval record, run directory,
+or real-data manifest was created. Dependence-aware uncertainty estimation
+remains unimplemented, and all scientific choices listed in the approval
+package remain unresolved. Synthetic fixtures and computation completion are
+engineering evidence only, not proof of predictive value or permission for a
+real-data evaluation.
+
+### Milestone 4A — SUPPORT_TOUCH_001 preregistration proposal
+
+The hypothesis and companion methodology/approval documents now contain a
+decision-ready draft recommendation: BTCUSD 4h as the sole primary family;
+ETHUSD and SOLUSD 4h as separate exploratory replications; the unchanged
+higher-low versus lower-low support-touch contrast; and a proposed exact
+24-hour close-to-close outcome. UTC chronological partitions, gap and overlap
+rules, dependence-aware uncertainty, minimum evidence, multiplicity, and
+decision criteria are specified as candidates, not approved values.
+
+`DECISION_REGISTER_SUPPORT_TOUCH_001.md` maps recommendations and existing
+mechanical contracts to the implementing functions and identifies open
+approval decisions and engineering blockers. The dependence-aware interval
+and effective-sample adequacy check are not implemented. At the time of the
+Milestone 4A proposal, embargo was not validated against horizon; Milestone
+4C adds that mechanical check. The event-study runner remains descriptive
+and stage-gated only. No outcome, approval record, frozen real-data holdout,
+or experiment manifest was created. The hypothesis remains
+**DRAFT — NOT APPROVED FOR EVALUATION**.
+
+### Milestone 4C — statistical and protocol readiness (engineering only)
+
+Created the versioned draft specification
+`SUPPORT_TOUCH_001_PREREG_DRAFT_V1.json` and recorded its `EventStudySpec`
+fingerprint. The primary BTCUSD 4h, event-weighted contrast, proposed exact
+24-hour outcome, and gap exclusions remain unapproved recommendations; the
+split, feature settings, uncertainty procedure, adequacy thresholds, and
+scientific decision criteria remain unresolved.
+
+The runner now enforces a nominal horizon-linked embargo and stage-endpoint
+containment. A separate plan-lock then holdout-release API is required for
+holdout, and the release hash is recorded in its output bundle; authorization time must follow lock time. Tests use
+synthetic files only. These local API controls reduce accidental misuse but
+do not isolate files or prevent a process owner from bypassing Python checks.
+
+No bootstrap interval or precision gate was implemented. The previously
+suggested crossed zone × calendar-week bootstrap is not sufficiently specified
+or validated for the crossed and serial dependence structure; choosing an
+estimator requires further methodological review and explicit approval. No
+project OHLCV outcomes, labels, or hypothesis results were calculated, no real
+approval/holdout/manifest was created, and the hypothesis remains
+**DRAFT — NOT APPROVED FOR EVALUATION**.
